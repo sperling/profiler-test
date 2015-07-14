@@ -1,0 +1,4 @@
+LIBRARY profiler-test
+EXPORTS
+    DllGetClassObject private
+    

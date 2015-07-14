@@ -36,9 +36,12 @@ list(APPEND SOURCES
     ${SOURCES_AMD64_ASM}    
 )
 
-convert_to_absolute_path(SOURCES ${SOURCES})
-#convert_to_absolute_path(SOURCES_AMD64_ASM ${SOURCES_AMD64_ASM})
-
+if (WIN32)
+	#Preprocess exports definition file
+	preprocess_def_file(${CMAKE_CURRENT_SOURCE_DIR}/profiler.def ${CMAKE_CURRENT_BINARY_DIR}/profiler.def)
+	list(APPEND SOURCES ${CMAKE_CURRENT_BINARY_DIR}/profiler.def)
+endif(WIN32)
+  
 add_library(profiler-test
 	SHARED
 	${SOURCES}
