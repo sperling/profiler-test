@@ -4,6 +4,10 @@
 #include <cor.h>
 #include <corprof.h>
 
+#ifndef PLATFORM_UNIX
+#include <stdio.h>
+#endif
+
 #define LOG_INIT() do { FILE *flog = fopen("log.txt", "w"); fclose(flog); } while (0)
 //#define LOG_INIT() do { } while (0)
 #define LOG_APPEND(EXPR) do { FILE *flog = fopen("log.txt", "a"); fprintf(flog, "%s\n", EXPR); fclose(flog); } while(0)

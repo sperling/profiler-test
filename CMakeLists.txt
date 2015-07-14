@@ -227,7 +227,7 @@ add_compile_options(/Zc:wchar_t-) # C++ language conformance: wchar_t is NOT the
 add_compile_options(/Zc:forScope) # C++ language conformance: enforce Standard C++ for scoping rules
 add_compile_options(/GR-) # disable C++ RTTI
 add_compile_options(/FC) # use full pathnames in diagnostics
-add_compile_options(/Zl) # omit default library name in .OBJ
+#add_compile_options(/Zl) # omit default library name in .OBJ
 add_compile_options(/MP) # Build with Multiple Processes (number of processes equal to the number of processors)
 add_compile_options(/GS) # Buffer Security Check
 add_compile_options(/Zm200) # Specify Precompiled Header Memory Allocation Limit of 150MB

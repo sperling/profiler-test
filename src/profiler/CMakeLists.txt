@@ -23,17 +23,13 @@ set(SOURCES
 )
 
 if(WIN32)
-
-
-# AMD64 specific asm sources
-set(SOURCES_AMD64_ASM
-    
-)
-
+    set(SOURCES_AMD64_ASM
+		${AMD64_SOURCES_DIR}/asmhelpers.asm    
+	)
 else()
-set(SOURCES_AMD64_ASM
-    ${AMD64_SOURCES_DIR}/unixasmhelpers.S    
-)
+	set(SOURCES_AMD64_ASM
+		${AMD64_SOURCES_DIR}/unixasmhelpers.S    
+	)
 endif(WIN32)
 
 list(APPEND SOURCES
@@ -48,6 +44,12 @@ add_library(profiler-test
 	${SOURCES}
 )
 
+find_library(CLR_CMAKE_CLR_CORGUIDS_LIB 
+		corguids
+		HINTS 
+		"${CLR_CMAKE_CORECLR_PRODUCT_DIR}/lib"
+)
+
 if(CLR_CMAKE_PLATFORM_UNIX)
 	find_library(CLR_CMAKE_CLR_CORECLRPAL_LIB 
 		coreclrpal
@@ -58,20 +60,15 @@ if(CLR_CMAKE_PLATFORM_UNIX)
 		palrt
 		HINTS 
 		"${CLR_CMAKE_CORECLR_PRODUCT_DIR}/lib"
-	)
-	find_library(CLR_CMAKE_CLR_CORGUIDS_LIB 
-		corguids
-		HINTS 
-		"${CLR_CMAKE_CORECLR_PRODUCT_DIR}/lib"
-	)
-	set(CLR_CMAKE_CLR_LIBS ${CLR_CMAKE_CLR_CORECLRPAL_LIB} ${CLR_CMAKE_CLR_PALRT_LIB} ${CLR_CMAKE_CLR_CORGUIDS_LIB}) 
+	)	
+	set(CLR_CMAKE_CLR_LIBS ${CLR_CMAKE_CLR_CORECLRPAL_LIB} ${CLR_CMAKE_CLR_PALRT_LIB} ${CLR_CMAKE_CLR_CORGUIDS_LIB} dl pthread) 
+else()
+	set(CLR_CMAKE_CLR_LIBS ${CLR_CMAKE_CLR_CORGUIDS_LIB}) 
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 install (TARGETS profiler-test DESTINATION .)
 set_target_properties(profiler-test PROPERTIES PREFIX "")
 
-if(CLR_CMAKE_PLATFORM_UNIX)
-	target_link_libraries(profiler-test 
-		${CLR_CMAKE_CLR_LIBS} dl pthread
-	)
-endif(CLR_CMAKE_PLATFORM_UNIX)
+target_link_libraries(profiler-test 
+	${CLR_CMAKE_CLR_LIBS}
+)
