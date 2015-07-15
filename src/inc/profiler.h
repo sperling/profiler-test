@@ -8,14 +8,13 @@
 #include <stdio.h>
 #endif
 
-#define LOG_INIT() do { FILE *flog = fopen("log.txt", "w"); fclose(flog); } while (0)
-//#define LOG_INIT() do { } while (0)
-#define LOG_APPEND(EXPR) do { FILE *flog = fopen("log.txt", "a"); fprintf(flog, "%s\n", EXPR); fclose(flog); } while(0)
-//#define LOG_APPEND(EXPR) do { } while(0)
-#define LOG_APPEND2(EXPR, COUNT) do { FILE *flog = fopen("log.txt", "a"); fprintf(flog, "%.*s", COUNT, "               "); fprintf(flog, EXPR); fprintf(flog, "\n"); fclose(flog); } while(0)
-//#define LOG_APPEND2(EXPR, COUNT) do { } while(0)
-#define LOG_IFFAILEDRET(HR, EXPR) do { if (FAILED(HR)) { FILE *flog = fopen("log.txt", "a"); fprintf(flog, "%s , hr = %x\n", EXPR, HR); fclose(flog); return HR; } } while(0)
-//#define LOG_IFFAILEDRET(HR, EXPR) do { } while(0)
+extern FILE *flog;
+
+#define LOG_INIT() do { flog = fopen("log.txt", "w"); } while (0)
+#define LOG_SHUTDOWN() do { fclose(flog); } while (0)
+#define LOG_APPEND(EXPR) do { fprintf(flog, "%s\n", EXPR); } while(0)
+#define LOG_APPEND2(EXPR, COUNT) do { fprintf(flog, "%.*s", COUNT, "                                                                    "); fprintf(flog, EXPR); fprintf(flog, " tid: %d\n", GetCurrentThreadId()); } while(0)
+#define LOG_IFFAILEDRET(HR, EXPR) do { if (FAILED(HR)) { fprintf(flog, "%s , hr = %x\n", EXPR, HR); return HR; } } while(0)
 
 extern const GUID __declspec(selectany) CLSID_PROFILER = {
 	0xc4d6e538, 0x1af1, 0x44d0, { 0x92, 0xc0, 0x55, 0x25, 0xde, 0x10, 0xb7, 0x26 }

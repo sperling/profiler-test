@@ -88,18 +88,22 @@ EXTERN_C void __stdcall TailcallStub( FunctionID functionID )
     
 } // TailcallStub
 
+FILE *flog;
+
 #define _TR
 
 #ifdef _TR
 
-LONG trDepth = 0;
+static DWORD tlsIndex;
 
-#define TR_PUSH() InterlockedIncrement(&trDepth)
-#define TR_POP() InterlockedDecrement(&trDepth)
-#define TR(STR) LOG_APPEND2("ProfilerCallback::" STR, trDepth)
+#define TR_START() do { tlsIndex = TlsAlloc(); TlsSetValue(tlsIndex, reinterpret_cast<LPVOID>(0)); } while (0)
+#define TR_PUSH() do { TlsSetValue(tlsIndex, reinterpret_cast<LPVOID>(reinterpret_cast<int>(TlsGetValue(tlsIndex)) + 1)); } while (0)
+#define TR_POP() do { int vv = reinterpret_cast<int>(TlsGetValue(tlsIndex)) - 1; /* are getting a AppDomainCreationFinished without a AppDomainCreationStarted...*/if (vv < 0) { vv = 0; } TlsSetValue(tlsIndex, reinterpret_cast<LPVOID>(vv)); } while (0)
+#define TR(STR) LOG_APPEND2("ProfilerCallback::" STR, reinterpret_cast<int>(TlsGetValue(tlsIndex)))
 
 #else
 
+#define TR_START()
 #define TR_PUSH()
 #define TR_POP()
 #define TR(STR)
@@ -127,6 +131,8 @@ __forceinline void ProfilerCallback::Tailcall(FunctionID functionID)
 HRESULT ProfilerCallback::CreateObject(REFIID riid, void **ppInterface)
 {
 	LOG_APPEND("CreateObject");
+
+	TR_START();
 
 	*ppInterface = NULL;
 
@@ -167,9 +173,8 @@ HRESULT ProfilerCallback::CreateObject(REFIID riid, void **ppInterface)
 		return E_OUTOFMEMORY;
 	}
 
-	pProfilerCallback->AddRef();
-	// TODO:	why not ICorProfilerCallback5/6 here?
-	*ppInterface = static_cast<ICorProfilerCallback2 *>(pProfilerCallback);
+	pProfilerCallback->AddRef();	
+	*ppInterface = static_cast<ICorProfilerCallback6 *>(pProfilerCallback);
 
 	LOG_APPEND("Profiler succesfully entered.");
 
@@ -185,6 +190,7 @@ ProfilerCallback::ProfilerCallback() :
 
 ProfilerCallback::~ProfilerCallback()
 {
+	LOG_SHUTDOWN();
 }
 
 // [public] IUnknown method, increments refcount to keep track of when to call destructor
@@ -225,12 +231,7 @@ HRESULT ProfilerCallback::QueryInterface(REFIID riid, void **ppInterface)
 		*ppInterface = static_cast<ICorProfilerCallback *>(this);
 	else
 	{
-		*ppInterface = NULL;
-		/*OLECHAR* bstrGuid;
-		StringFromCLSID(riid, &bstrGuid);
-		wstring strRiid(bstrGuid);		
-		CoTaskMemFree(bstrGuid);
-		LOG_IFFAILEDRET(E_NOINTERFACE, L"Unsupported Callback type in ::QueryInterface, riid = " << strRiid.c_str());*/
+		*ppInterface = NULL;		
 	}
 
 	// Interface was successfully inferred, increase its reference count.
@@ -239,7 +240,7 @@ HRESULT ProfilerCallback::QueryInterface(REFIID riid, void **ppInterface)
 	return S_OK;
 }
 
-// [public] Initializes the profiler using the given (hopefully) instance of ICorProfilerCallback5
+// [public] Initializes the profiler using the given (hopefully) instance of ICorProfilerCallback6
 HRESULT ProfilerCallback::Initialize(IUnknown *pICorProfilerInfoUnk)
 {
 	TR("Initialize");
@@ -247,20 +248,18 @@ HRESULT ProfilerCallback::Initialize(IUnknown *pICorProfilerInfoUnk)
 	HRESULT hr;
 
 	hr = pICorProfilerInfoUnk->QueryInterface(IID_ICorProfilerInfo6, (void **) &m_pProfilerInfo);
-	LOG_IFFAILEDRET(hr, "QueryInterface for ICorProfilerInfo4 failed in ::Initialize");
+	LOG_IFFAILEDRET(hr, "QueryInterface for ICorProfilerInfo6 failed in ::Initialize");
 	
 	hr = m_pProfilerInfo->SetEventMask(
 		COR_PRF_MONITOR_MODULE_LOADS |
 		COR_PRF_MONITOR_ASSEMBLY_LOADS |
 		COR_PRF_MONITOR_APPDOMAIN_LOADS |
 		COR_PRF_MONITOR_JIT_COMPILATION |
-                //COR_PRF_MONITOR_ENTERLEAVE |
+        COR_PRF_MONITOR_ENTERLEAVE |
 		//COR_PRF_ENABLE_REJIT |
 		//COR_PRF_DISABLE_ALL_NGEN_IMAGES |
 		COR_PRF_USE_PROFILE_IMAGES |
-		// TODO:	should use first way of doing it with SafeCritical & Critical, http://blogs.msdn.com/b/davbr/archive/2010/01/07/clr-v4-stuff-that-may-break-your-profiler.aspx
 		COR_PRF_DISABLE_TRANSPARENCY_CHECKS_UNDER_FULL_TRUST |
-		//COR_PRF_DISABLE_OPTIMIZATIONS |
 		COR_PRF_MONITOR_EXCEPTIONS |
 		COR_PRF_ENABLE_STACK_SNAPSHOT);
 
@@ -299,12 +298,14 @@ HRESULT ProfilerCallback::AppDomainCreationFinished(AppDomainID appDomainID, HRE
 HRESULT ProfilerCallback::AppDomainShutdownStarted(AppDomainID appDomainID)
 {
 	TR("AppDomainShutdownStarted");
+	TR_PUSH();
 	return S_OK;
 }
 
 // Empty method.
 HRESULT ProfilerCallback::AppDomainShutdownFinished(AppDomainID appDomainID, HRESULT hrStatus)
 {
+	TR_POP();
 	TR("AppDomainShutdownFinished");
 	return S_OK;
 }
@@ -329,12 +330,14 @@ HRESULT ProfilerCallback::AssemblyLoadFinished(AssemblyID assemblyId, HRESULT hr
 HRESULT ProfilerCallback::AssemblyUnloadStarted(AssemblyID assemblyID)
 {
 	TR("AssemblyUnloadStarted");
+	TR_PUSH();
 	return S_OK;
 }
 
 // Empty method.
 HRESULT ProfilerCallback::AssemblyUnloadFinished(AssemblyID assemblyID, HRESULT hrStatus)
 {
+	TR_POP();
 	TR("AssemblyUnloadFinished");
 	return S_OK;
 }
@@ -359,11 +362,13 @@ HRESULT ProfilerCallback::ModuleLoadFinished(ModuleID moduleID, HRESULT hrStatus
 HRESULT ProfilerCallback::ModuleUnloadStarted(ModuleID moduleID)
 {
 	TR("ModuleUnloadStarted");
+	TR_PUSH();
 	return S_OK;
 }
 
 HRESULT ProfilerCallback::ModuleUnloadFinished(ModuleID moduleID, HRESULT hrStatus)
 {
+	TR_POP();
 	TR("ModuleUnloadFinished");
 	return S_OK;
 }
@@ -379,12 +384,14 @@ HRESULT ProfilerCallback::ModuleAttachedToAssembly(ModuleID moduleID, AssemblyID
 HRESULT ProfilerCallback::ClassLoadStarted(ClassID classID)
 {
 	TR("ClassLoadStarted");
+	TR_PUSH();
 	return S_OK;
 }
 
 // Empty method.
 HRESULT ProfilerCallback::ClassLoadFinished(ClassID classID, HRESULT hrStatus)
 {
+	TR_POP();
 	TR("ClassLoadFinished");
 	return S_OK;
 }
@@ -393,12 +400,14 @@ HRESULT ProfilerCallback::ClassLoadFinished(ClassID classID, HRESULT hrStatus)
 HRESULT ProfilerCallback::ClassUnloadStarted(ClassID classID)
 {
 	TR("ClassUnloadStarted");
+	TR_PUSH();
 	return S_OK;
 }
 
 // Empty method.
 HRESULT ProfilerCallback::ClassUnloadFinished(ClassID classID, HRESULT hrStatus)
 {
+	TR_POP();
 	TR("ClassUnloadFinished");
 	return S_OK;
 }
@@ -428,12 +437,14 @@ HRESULT ProfilerCallback::JITCompilationFinished(FunctionID functionID, HRESULT 
 HRESULT ProfilerCallback::JITCachedFunctionSearchStarted(FunctionID functionID, BOOL *pbUseCachedFunction)
 {
 	TR("JITCachedFunctionSearchStarted");
+	TR_PUSH();
 	return S_OK;
 }
 
 // Empty method.
 HRESULT ProfilerCallback::JITCachedFunctionSearchFinished(FunctionID functionID, COR_PRF_JIT_CACHE result)
 {	
+	TR_POP();
 	TR("JITCachedFunctionSearchFinished");
 	return S_OK;
 }
@@ -448,7 +459,7 @@ HRESULT ProfilerCallback::JITFunctionPitched(FunctionID functionID)
 // Empty method.
 HRESULT ProfilerCallback::JITInlining(FunctionID callerID, FunctionID calleeID, BOOL *pfShouldInline)
 {
-	TR("JITInlining");
+	//TR("JITInlining");
 	return S_OK;
 }
 
@@ -457,11 +468,13 @@ HRESULT ProfilerCallback::JITInlining(FunctionID callerID, FunctionID calleeID, 
 HRESULT ProfilerCallback::ReJITCompilationStarted(FunctionID functionID, ReJITID rejitId, BOOL fIsSafeToBlock)
 {
 	TR("ReJITCompilationStarted");
+	TR_PUSH();
 	return S_OK;
 }
 
 HRESULT ProfilerCallback::ReJITCompilationFinished(FunctionID functionId, ReJITID rejitId, HRESULT hrStatus, BOOL fIsSafeToBlock)
 {
+	TR_POP();
 	TR("ReJITCompilationFinished");
 	return S_OK;
 }
@@ -687,12 +700,14 @@ HRESULT ProfilerCallback::RootReferences(ULONG rootRefs, ObjectID rootRefIDs [])
 HRESULT ProfilerCallback::GarbageCollectionStarted(int cGenerations, BOOL generationCollected [], COR_PRF_GC_REASON reason)
 {
 	TR("GarbageCollectionStarted");
+	TR_PUSH();
 	return S_OK;
 }
 
 // Empty method.
 HRESULT ProfilerCallback::GarbageCollectionFinished()
 {
+	TR_POP();
 	TR("GarbageCollectionFinished");
 	return S_OK;
 }
@@ -736,13 +751,15 @@ HRESULT ProfilerCallback::ExceptionThrown(ObjectID thrownObjectID)
 HRESULT ProfilerCallback::ExceptionSearchFunctionEnter(FunctionID functionID)
 {
 	TR("ExceptionSearchFunctionEnter");
+	TR_PUSH();
 	return S_OK;		 
 }
 
 // Empty method.
 HRESULT ProfilerCallback::ExceptionSearchFunctionLeave()
 {
-	TR("ExceptionSearchFunctionEnter");
+	TR_POP();
+	TR("ExceptionSearchFunctionLeave");
 	return S_OK;
 }
 
@@ -750,12 +767,14 @@ HRESULT ProfilerCallback::ExceptionSearchFunctionLeave()
 HRESULT ProfilerCallback::ExceptionSearchFilterEnter(FunctionID functionID)
 {
 	TR("ExceptionSearchFilterEnter");
+	TR_PUSH();
 	return S_OK;
 }
 
 // Empty method.
 HRESULT ProfilerCallback::ExceptionSearchFilterLeave()
 {
+	TR_POP();
 	TR("ExceptionSearchFilterLeave");
 	return S_OK;
 }
@@ -785,12 +804,14 @@ HRESULT ProfilerCallback::ExceptionCLRCatcherExecute()
 HRESULT ProfilerCallback::ExceptionOSHandlerEnter(FunctionID functionID)
 {
 	TR("ExceptionOSHandlerEnter");
+	TR_PUSH();
 	return S_OK;
 }
 
 // Empty method.
 HRESULT ProfilerCallback::ExceptionOSHandlerLeave(FunctionID functionID)
 {
+	TR_POP();
 	TR("ExceptionOSHandlerLeave");
 	return S_OK;
 }
@@ -799,12 +820,14 @@ HRESULT ProfilerCallback::ExceptionOSHandlerLeave(FunctionID functionID)
 HRESULT ProfilerCallback::ExceptionUnwindFunctionEnter(FunctionID functionID)
 {
 	TR("ExceptionUnwindFunctionEnter");
+	TR_PUSH();
 	return S_OK;
 }
 
 // Empty method.
 HRESULT ProfilerCallback::ExceptionUnwindFunctionLeave()
 {
+	TR_POP();
 	TR("ExceptionUnwindFunctionLeave");
 	return S_OK;
 }
@@ -813,12 +836,14 @@ HRESULT ProfilerCallback::ExceptionUnwindFunctionLeave()
 HRESULT ProfilerCallback::ExceptionUnwindFinallyEnter(FunctionID functionID)
 {
 	TR("ExceptionUnwindFinallyEnter");
+	TR_PUSH();
 	return S_OK;
 }
 
 // Empty method.
 HRESULT ProfilerCallback::ExceptionUnwindFinallyLeave()
 {
+	TR_POP();
 	TR("ExceptionUnwindFinallyLeave");
 	return S_OK;
 }
@@ -827,12 +852,14 @@ HRESULT ProfilerCallback::ExceptionUnwindFinallyLeave()
 HRESULT ProfilerCallback::ExceptionCatcherEnter(FunctionID functionID, ObjectID objectID)
 {
 	TR("ExceptionCatcherEnter");
+	TR_PUSH();
 	return S_OK;
 }
 
 // Empty method.
 HRESULT ProfilerCallback::ExceptionCatcherLeave()
 {
+	TR_POP();
 	TR("ExceptionCatcherLeave");
 	return S_OK;
 }
