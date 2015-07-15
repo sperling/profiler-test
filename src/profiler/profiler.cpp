@@ -255,7 +255,11 @@ HRESULT ProfilerCallback::Initialize(IUnknown *pICorProfilerInfoUnk)
 		COR_PRF_MONITOR_ASSEMBLY_LOADS |
 		COR_PRF_MONITOR_APPDOMAIN_LOADS |
 		COR_PRF_MONITOR_JIT_COMPILATION |
+#ifndef PLATFORM_UNIX
+	// TODO:	this will generate invalid address when TR fprintf is called.
+	//			if TR is removed, then will generate invalid address after(in?) EnterNaked3.
         COR_PRF_MONITOR_ENTERLEAVE |
+#endif
 		//COR_PRF_ENABLE_REJIT |
 		//COR_PRF_DISABLE_ALL_NGEN_IMAGES |
 		COR_PRF_USE_PROFILE_IMAGES |
