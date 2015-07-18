@@ -112,7 +112,7 @@ static DWORD tlsIndex;
 
 __forceinline void ProfilerCallback::Enter(FunctionID functionID)
 {
-	TR("Enter");
+	//TR("Enter");
 }
 
 __forceinline void ProfilerCallback::Leave(FunctionID functionID)
@@ -255,9 +255,11 @@ HRESULT ProfilerCallback::Initialize(IUnknown *pICorProfilerInfoUnk)
 		COR_PRF_MONITOR_ASSEMBLY_LOADS |
 		COR_PRF_MONITOR_APPDOMAIN_LOADS |
 		COR_PRF_MONITOR_JIT_COMPILATION |
+		COR_PRF_MONITOR_GC |
 #ifndef PLATFORM_UNIX
-	// TODO:	this will generate invalid address when TR fprintf is called.
-	//			if TR is removed, then will generate invalid address after(in?) EnterNaked3.
+// TODO:	will thrash *obj(System.AppDomain) in JIT_MonReliableEnter_Portable(System.Threading.Monitor.ReliableEnter)
+//		    for System.Threading.Monitor.Enter call. because of static, nested, byref or something wrong with EnterNaked3?
+//			EnterNaked3 gets called for System.AppDomain.SetupDomain and System.Threading.Monitor.Enter, so looks ok.
         COR_PRF_MONITOR_ENTERLEAVE |
 #endif
 		//COR_PRF_ENABLE_REJIT |
@@ -269,11 +271,12 @@ HRESULT ProfilerCallback::Initialize(IUnknown *pICorProfilerInfoUnk)
 
 	LOG_IFFAILEDRET(hr, "SetEventMask failed in ::Initialize");
 	
-	hr = m_pProfilerInfo->SetEnterLeaveFunctionHooks3( (FunctionEnter3 *)EnterNaked3,
-                                                            NULL,//(FunctionLeave3 *)LeaveNaked3,
-                                                            NULL);//(FunctionTailcall3 *)TailcallNaked3 );
-        LOG_IFFAILEDRET(hr, "SetEnterLeaveFunctionHooks3 failed in ::Initialize");
-
+#ifndef PLATFORM_UNIX
+	hr = m_pProfilerInfo->SetEnterLeaveFunctionHooks3((FunctionEnter3 *)EnterNaked3,
+                                                      NULL,//(FunctionLeave3 *)LeaveNaked3,
+                                                      NULL);//(FunctionTailcall3 *)TailcallNaked3 );
+    LOG_IFFAILEDRET(hr, "SetEnterLeaveFunctionHooks3 failed in ::Initialize");
+#endif
 	return S_OK;
 }
 
