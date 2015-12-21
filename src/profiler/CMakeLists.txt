@@ -47,13 +47,12 @@ add_library(profiler-test
 	${SOURCES}
 )
 
-find_library(CLR_CMAKE_CLR_CORGUIDS_LIB 
+if(CLR_CMAKE_PLATFORM_UNIX)
+	find_library(CLR_CMAKE_CLR_CORGUIDS_LIB 
 		corguids
 		HINTS 
 		"${CLR_CMAKE_CORECLR_PRODUCT_DIR}/lib"
-)
-
-if(CLR_CMAKE_PLATFORM_UNIX)
+	)
 	find_library(CLR_CMAKE_CLR_CORECLRPAL_LIB 
 		coreclrpal
 		HINTS 
@@ -66,6 +65,8 @@ if(CLR_CMAKE_PLATFORM_UNIX)
 	)	
 	set(CLR_CMAKE_CLR_LIBS ${CLR_CMAKE_CLR_CORECLRPAL_LIB} ${CLR_CMAKE_CLR_PALRT_LIB} ${CLR_CMAKE_CLR_CORGUIDS_LIB} dl pthread) 
 else()
+	# find_library will pick from Windows Kits\8.1
+	set(CLR_CMAKE_CLR_CORGUIDS_LIB "${CLR_CMAKE_CORECLR_PRODUCT_DIR}/lib/corguids.lib")
 	set(CLR_CMAKE_CLR_LIBS ${CLR_CMAKE_CLR_CORGUIDS_LIB}) 
 endif(CLR_CMAKE_PLATFORM_UNIX)
 

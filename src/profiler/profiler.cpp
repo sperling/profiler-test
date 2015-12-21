@@ -232,8 +232,9 @@ HRESULT ProfilerCallback::QueryInterface(REFIID riid, void **ppInterface)
 	else
 	{
 		*ppInterface = NULL;		
-	}
-
+		return S_OK;
+	}	
+	
 	// Interface was successfully inferred, increase its reference count.
 	reinterpret_cast<IUnknown *>(*ppInterface)->AddRef();
 
