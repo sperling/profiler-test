@@ -4,7 +4,23 @@
 
 CURRENT_PATH=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 FULL_PATH=$CURRENT_PATH/../bin/Product/Linux.x64.Debug
-ABSOLUTE_PATH=$(cd $FULL_PATH; pwd)/profiler-test
+# libExtension determines extension for dynamic library files
+OSName=$(uname -s)
+libExtension=
+case $OSName in
+    Linux)
+        libExtension="so"
+        ;;
+
+    Darwin)
+        libExtension="dylib"
+        ;;
+    *)
+        echo "Unsupported OS $OSName detected, configuring as if for Linux"
+        libExtension="so"
+        ;;
+esac
+ABSOLUTE_PATH=$(cd $FULL_PATH; pwd)/profiler-test.$libExtension
 
 export COMPlus_LogEnable=1
 export COMPlus_LogToFile=1
