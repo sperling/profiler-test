@@ -3,23 +3,27 @@
 # run with source ./setupprof.sh or . ./setupprof.sh
 
 CURRENT_PATH=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-FULL_PATH=$CURRENT_PATH/../bin/Product/Linux.x64.Debug
 # libExtension determines extension for dynamic library files
 OSName=$(uname -s)
 libExtension=
+os=
 case $OSName in
     Linux)
         libExtension="so"
+        os="Linux"
         ;;
 
     Darwin)
         libExtension="dylib"
+        os="OSX"
         ;;
     *)
         echo "Unsupported OS $OSName detected, configuring as if for Linux"
         libExtension="so"
+        os="Linux"
         ;;
 esac
+FULL_PATH=$CURRENT_PATH/../bin/Product/$os.x64.Debug
 ABSOLUTE_PATH=$(cd $FULL_PATH; pwd)/profiler-test.$libExtension
 
 export COMPlus_LogEnable=1

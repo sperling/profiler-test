@@ -63,6 +63,7 @@ if(CLR_CMAKE_PLATFORM_UNIX)
 		HINTS 
 		"${CLR_CMAKE_CORECLR_PRODUCT_DIR}/lib"
 	)	
+        
 	set(CLR_CMAKE_CLR_LIBS ${CLR_CMAKE_CLR_CORECLRPAL_LIB} ${CLR_CMAKE_CLR_PALRT_LIB} ${CLR_CMAKE_CLR_CORGUIDS_LIB} dl pthread) 
 else()
 	# find_library will pick from Windows Kits\8.1
@@ -76,3 +77,12 @@ set_target_properties(profiler-test PROPERTIES PREFIX "")
 target_link_libraries(profiler-test 
 	${CLR_CMAKE_CLR_LIBS}
 )
+
+if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+find_library(COREFOUNDATION CoreFoundation)
+find_library(SECURITY Security)
+target_link_libraries(profiler-test 
+	${COREFOUNDATION}
+    ${SECURITY}
+)               
+endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
