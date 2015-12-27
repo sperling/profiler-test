@@ -132,6 +132,10 @@ HRESULT ProfilerCallback::CreateObject(REFIID riid, void **ppInterface)
 {
 	LOG_APPEND("CreateObject");
 
+#ifdef FEATURE_INIT_PAL
+	PAL_Initialize(0, NULL);
+#endif
+	
 	TR_START();
 
 	*ppInterface = NULL;
