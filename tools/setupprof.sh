@@ -17,6 +17,11 @@ case $OSName in
         libExtension="dylib"
         os="OSX"
         ;;
+
+    FreeBSD)
+	libExtension="so"
+	os="FreeBSD"
+	;;
     *)
         echo "Unsupported OS $OSName detected, configuring as if for Linux"
         libExtension="so"
