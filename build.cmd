@@ -6,9 +6,9 @@ set __BuildArch=x64
 set __BuildType=Debug
 set __BuildOS=Windows_NT
 
-:: Default to VS2013
-set __VSVersion=VS2013
-set __VSProductVersion=120
+:: Default to VS2015
+set __VSVersion=VS2015
+set __VSProductVersion=140
 
 :: Set the various build properties here so that CMake and MSBuild can pick them up
 set "__ProjectDir=%~dp0"
@@ -166,5 +166,5 @@ echo.
 echo BuildArch can be: x64
 echo BuildType can be: Debug, Release
 echo Clean - optional argument to force a clean build.
-echo VSVersion - optional argument to use VS2013 or VS2015 (default VS2013)
+echo VSVersion - optional argument to use VS2013 or VS2015 (default VS2015)
 exit /b 1
