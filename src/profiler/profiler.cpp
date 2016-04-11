@@ -245,6 +245,10 @@ HRESULT ProfilerCallback::QueryInterface(REFIID riid, void **ppInterface)
 	return S_OK;
 }
 
+void EnterNaked3Stub(FunctionID functionID)
+{
+}
+
 // [public] Initializes the profiler using the given (hopefully) instance of ICorProfilerCallback6
 HRESULT ProfilerCallback::Initialize(IUnknown *pICorProfilerInfoUnk)
 {
@@ -261,27 +265,27 @@ HRESULT ProfilerCallback::Initialize(IUnknown *pICorProfilerInfoUnk)
 		COR_PRF_MONITOR_APPDOMAIN_LOADS |
 		COR_PRF_MONITOR_JIT_COMPILATION |
 		COR_PRF_MONITOR_GC |
-#ifndef PLATFORM_UNIX
+//#ifndef PLATFORM_UNIX
 // TODO:	will thrash *obj(System.AppDomain) in JIT_MonReliableEnter_Portable(System.Threading.Monitor.ReliableEnter)
 //		    for System.Threading.Monitor.Enter call. because of static, nested, byref or something wrong with EnterNaked3?
 //			EnterNaked3 gets called for System.AppDomain.SetupDomain and System.Threading.Monitor.Enter, so looks ok.
         COR_PRF_MONITOR_ENTERLEAVE |
-#endif
+//#endif
 		//COR_PRF_ENABLE_REJIT |
 		//COR_PRF_DISABLE_ALL_NGEN_IMAGES |
-		COR_PRF_USE_PROFILE_IMAGES |
+//		COR_PRF_USE_PROFILE_IMAGES |
 		COR_PRF_DISABLE_TRANSPARENCY_CHECKS_UNDER_FULL_TRUST |
 		COR_PRF_MONITOR_EXCEPTIONS |
 		COR_PRF_ENABLE_STACK_SNAPSHOT);
 
 	LOG_IFFAILEDRET(hr, "SetEventMask failed in ::Initialize");
 	
-#ifndef PLATFORM_UNIX
+//#ifndef PLATFORM_UNIX
 	hr = m_pProfilerInfo->SetEnterLeaveFunctionHooks3((FunctionEnter3 *)EnterNaked3,
                                                       NULL,//(FunctionLeave3 *)LeaveNaked3,
                                                       NULL);//(FunctionTailcall3 *)TailcallNaked3 );
     LOG_IFFAILEDRET(hr, "SetEnterLeaveFunctionHooks3 failed in ::Initialize");
-#endif
+//#endif
 	return S_OK;
 }
 

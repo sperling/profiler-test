@@ -5,7 +5,7 @@
 //typedef void EnterNaked3(
 //         rcx = FunctionIDOrClientID functionIDOrClientID);
 
-//.align   16
+.align   16
 
 //.section .text
 //.globl EnterNaked3
