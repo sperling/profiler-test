@@ -100,6 +100,7 @@ static DWORD tlsIndex;
 #define TR_PUSH() do { TlsSetValue(tlsIndex, reinterpret_cast<LPVOID>(reinterpret_cast<int>(TlsGetValue(tlsIndex)) + 1)); } while (0)
 #define TR_POP() do { int vv = reinterpret_cast<int>(TlsGetValue(tlsIndex)) - 1; /* are getting a AppDomainCreationFinished without a AppDomainCreationStarted...*/if (vv < 0) { vv = 0; } TlsSetValue(tlsIndex, reinterpret_cast<LPVOID>(vv)); } while (0)
 #define TR(STR) LOG_APPEND2("ProfilerCallback::" STR, reinterpret_cast<int>(TlsGetValue(tlsIndex)))
+#define TRW(STR) LOG_APPEND2W(STR, reinterpret_cast<int>(TlsGetValue(tlsIndex)))
 
 #else
 
@@ -107,6 +108,7 @@ static DWORD tlsIndex;
 #define TR_PUSH()
 #define TR_POP()
 #define TR(STR)
+#define TRW(STR)
 
 #endif
 
@@ -256,7 +258,7 @@ HRESULT ProfilerCallback::Initialize(IUnknown *pICorProfilerInfoUnk)
 	LOG_IFFAILEDRET(hr, "QueryInterface for ICorProfilerInfo6 failed in ::Initialize");
 	
 	hr = m_pProfilerInfo->SetEventMask(
-		COR_PRF_MONITOR_MODULE_LOADS |
+		COR_PRF_MONITOR_MODULE_LOADS  |
 		COR_PRF_MONITOR_ASSEMBLY_LOADS |
 		COR_PRF_MONITOR_APPDOMAIN_LOADS |
 		COR_PRF_MONITOR_JIT_COMPILATION |
@@ -269,10 +271,12 @@ HRESULT ProfilerCallback::Initialize(IUnknown *pICorProfilerInfoUnk)
 #endif
 		//COR_PRF_ENABLE_REJIT |
 		//COR_PRF_DISABLE_ALL_NGEN_IMAGES |
-		COR_PRF_USE_PROFILE_IMAGES |
+		//COR_PRF_USE_PROFILE_IMAGES |
+		
 		COR_PRF_DISABLE_TRANSPARENCY_CHECKS_UNDER_FULL_TRUST |
 		COR_PRF_MONITOR_EXCEPTIONS |
-		COR_PRF_ENABLE_STACK_SNAPSHOT);
+		COR_PRF_ENABLE_STACK_SNAPSHOT
+		);
 
 	LOG_IFFAILEDRET(hr, "SetEventMask failed in ::Initialize");
 	
@@ -359,6 +363,15 @@ HRESULT ProfilerCallback::ModuleLoadStarted(ModuleID moduleID)
 {
 	TR("ModuleLoadStarted");
 	TR_PUSH();
+	
+	WCHAR wszName[300] = { 0 };
+	LPCBYTE baseLoadAddress;
+	ULONG chName;
+	AssemblyID assemblyId;
+
+	m_pProfilerInfo->GetModuleInfo(moduleID, &baseLoadAddress, 300, &chName, wszName, &assemblyId);
+	TRW(wszName);
+	
 	return S_OK;
 }
 
@@ -435,6 +448,46 @@ HRESULT ProfilerCallback::JITCompilationStarted(FunctionID functionID, BOOL fIsS
 {
 	TR("JITCompilationStarted");
 	TR_PUSH();
+			
+	ModuleID moduleID;
+	mdToken methodDef;
+	m_pProfilerInfo->GetFunctionInfo(functionID, nullptr, &moduleID, &methodDef);
+	
+	IMetaDataImport *pImport;
+	{
+		COMPtrHolder<IUnknown> pUnk;
+
+		m_pProfilerInfo->GetModuleMetaData(moduleID, ofRead, IID_IMetaDataImport, &pUnk);
+		
+		pUnk->QueryInterface(IID_IMetaDataImport, (LPVOID *) &pImport);				
+	}
+	
+	mdTypeDef typeDef;
+	WCHAR wszMethodDefName[256];
+	WCHAR wszTypeDefName[256];
+	pImport->GetMethodProps(
+			methodDef,
+			&typeDef,
+			wszMethodDefName,
+			256,
+			NULL,
+			NULL,
+			NULL,       // [OUT] point to the blob value of meta data
+			NULL,       // [OUT] actual size of signature blob
+			NULL,       // [OUT] codeRVA
+			NULL);      // [OUT] Impl. Flags
+	pImport->GetTypeDefProps(
+			typeDef,
+			wszTypeDefName,
+			256,
+			NULL,
+			NULL,
+			NULL);
+	
+	WCHAR tmp[512];
+	swprintf(tmp, W("%s::%s"), wszTypeDefName, wszMethodDefName);
+	TRW(tmp);
+			
 	return S_OK;
 }
 

@@ -312,6 +312,8 @@ add_compile_options(-fms-extensions )
 #-fms-compatibility      Enable full Microsoft Visual C++ compatibility
 #-fms-extensions         Accept some non-standard constructs supported by the Microsoft compiler
 
+add_compile_options(-Wa,--noexecstack)
+
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 # Libraries
