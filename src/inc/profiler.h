@@ -12,8 +12,10 @@ extern FILE *flog;
 
 #define LOG_INIT() do { flog = fopen("log.txt", "w"); } while (0)
 #define LOG_SHUTDOWN() do { fclose(flog); } while (0)
-#define LOG_APPEND(EXPR) do { fprintf(flog, "%s\n", EXPR); } while(0)
+#define LOG_APPEND(EXPR) do { fprintf(flog, "%s\n", EXPR); fflush(flog); } while(0)
 #define LOG_APPEND2(EXPR, COUNT) do { fprintf(flog, "%.*s", COUNT, "                                                                    "); fprintf(flog, EXPR); fprintf(flog, " tid: %d\n", GetCurrentThreadId()); fflush(flog); } while(0)
+#define LOG_APPEND2W(EXPR, COUNT) do { fprintf(flog, "%.*s", COUNT, "                                                                    "); fwprintf(flog, EXPR); fprintf(flog, " tid: %d\n", GetCurrentThreadId()); fflush(flog); } while(0)
+
 #define LOG_IFFAILEDRET(HR, EXPR) do { if (FAILED(HR)) { fprintf(flog, "%s , hr = %x\n", EXPR, HR); fflush(flog); return HR; } } while(0)
 
 extern const GUID __declspec(selectany) CLSID_PROFILER = {
@@ -24,6 +26,47 @@ extern const GUID __declspec(selectany) CLSID_PROFILER = {
 
 // alias' for COM method signatures
 #define COM_METHOD(TYPE) TYPE STDMETHODCALLTYPE
+
+template <class MetaInterface>
+class COMPtrHolder
+{
+public:
+	COMPtrHolder()
+	{
+		m_ptr = NULL;
+	}
+
+	~COMPtrHolder()
+	{
+		if (m_ptr != NULL)
+		{
+			m_ptr->Release();
+			m_ptr = NULL;
+		}
+	}
+
+	MetaInterface* operator->()
+	{
+		return m_ptr;
+	}
+
+	MetaInterface** operator&()
+	{
+		return &m_ptr;
+	}
+
+	operator MetaInterface*()
+	{
+		return m_ptr;
+	}
+
+private:
+	MetaInterface* m_ptr;
+};
+
+#ifndef W
+#define W(STR) 512, L##STR
+#endif
 
 class ProfilerCallback : public ICorProfilerCallback6
 {
